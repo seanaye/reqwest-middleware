@@ -9,9 +9,9 @@ use std::sync::Arc;
 #[cfg(feature = "multipart")]
 use reqwest::multipart;
 
+use crate::RequestInitialiser;
 use crate::error::Result;
 use crate::middleware::{Middleware, Next};
-use crate::RequestInitialiser;
 
 /// A `ClientBuilder` is used to build a [`ClientWithMiddleware`].
 ///
@@ -259,7 +259,7 @@ mod service {
     use http::Extensions;
     use reqwest::{Request, Response};
 
-    use crate::{middleware::BoxFuture, ClientWithMiddleware, Next};
+    use crate::{ClientWithMiddleware, Next, middleware::BoxFuture};
 
     // this is meant to be semi-private, same as reqwest's pending
     pub struct Pending {
@@ -339,6 +339,26 @@ impl RequestBuilder {
             middleware_stack: client.middleware_stack,
             initialiser_stack: client.initialiser_stack,
             extensions: Extensions::new(),
+        }
+    }
+
+    /// grants caller access to the interrior [`reqwest::RequestBuilder`]
+    /// allowing the caller to change any property required via callback function
+    pub fn with_inner_builder(
+        self,
+        cb: impl FnOnce(reqwest::RequestBuilder) -> reqwest::RequestBuilder,
+    ) -> Self {
+        let RequestBuilder {
+            inner,
+            middleware_stack,
+            initialiser_stack,
+            extensions,
+        } = self;
+        RequestBuilder {
+            inner: cb(inner),
+            middleware_stack,
+            initialiser_stack,
+            extensions,
         }
     }
 
